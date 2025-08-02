@@ -1,0 +1,169 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5><i class="bi bi-graph-up"></i> Performance des Stratégies</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="performanceChart" height="250"></canvas>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5><i class="bi bi-activity"></i> Dernières Exécutions</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Stratégie</th>
+                                <th>Symbole</th>
+                                <th>Résultat</th>
+                                <th>Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody id="executionsTable">
+                            <!-- Rempli dynamiquement par JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5><i class="bi bi-speedometer2"></i> Statut du Système</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Service:</span>
+                    <span class="badge bg-success" id="serviceStatus">Actif</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Dernière exécution:</span>
+                    <span id="lastExecution">-</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Prochaine exécution:</span>
+                    <span id="nextExecution">-</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Version:</span>
+                    <span>1.0.0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5><i class="bi bi-lightning-charge"></i> Actions Rapides</h5>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary w-100 mb-2" id="runStrategyBtn">
+                    <i class="bi bi-play-circle"></i> Exécuter une stratégie
+                </button>
+                <button class="btn btn-success w-100 mb-2" id="addStrategyBtn">
+                    <i class="bi bi-plus-circle"></i> Ajouter une stratégie
+                </button>
+                <button class="btn btn-info w-100 mb-2" id="viewLogsBtn">
+                    <i class="bi bi-journal-text"></i> Voir les logs
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5><i class="bi bi-pie-chart"></i> Répartition des Stratégies</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="strategyDistribution" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialiser les graphiques
+    const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+    const performanceChart = new Chart(performanceCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Performance du portefeuille',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Performance historique'
+                }
+            }
+        }
+    });
+
+    // Charger les données
+    async function loadDashboardData() {
+        try {
+            const response = await fetch('/api/dashboard');
+            const data = await response.json();
+            
+            // Mettre à jour le graphique de performance
+            performanceChart.data.labels = data.performance.labels;
+            performanceChart.data.datasets[0].data = data.performance.values;
+            performanceChart.update();
+            
+            // Mettre à jour les exécutions
+            const executionsTable = document.getElementById('executionsTable');
+            executionsTable.innerHTML = '';
+            
+            data.recent_executions.forEach(exec => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${new Date(exec.timestamp).toLocaleString()}</td>
+                    <td>${exec.strategy}</td>
+                    <td>${exec.symbol}</td>
+                    <td>${exec.result || '-'}</td>
+                    <td><span class="badge ${exec.success ? 'bg-success' : 'bg-danger'}">
+                        ${exec.success ? 'Succès' : 'Échec'}
+                    </span></td>
+                `;
+                executionsTable.appendChild(row);
+            });
+            
+            // Mettre à jour le statut
+            document.getElementById('lastExecution').textContent = 
+                data.last_execution ? new Date(data.last_execution).toLocaleString() : '-';
+                
+            document.getElementById('nextExecution').textContent = 
+                data.next_execution ? new Date(data.next_execution).toLocaleString() : '-';
+                
+        } catch (error) {
+            console.error('Erreur de chargement des données:', error);
+        }
+    }
+    
+    // Charger les données initiales
+    loadDashboardData();
+    
+    // Actualiser toutes les 30 secondes
+    setInterval(loadDashboardData, 30000);
+</script>
+{% endblock %}

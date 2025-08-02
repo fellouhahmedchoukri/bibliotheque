@@ -1,0 +1,59 @@
+//@version=5
+strategy("binance-trading-bot-grid", pyramiding=1, margin_long=100, margin_short=100, commission_value=0.1, initial_capital=500.00, overlay=true)
+
+// Paramètres améliorés avec valeurs par défaut optimisées
+orderValue = input.float(10.00, "Order value", minval=5.00, tooltip="Montant en USD pour chaque ordre")
+minMovement = input.float(0.00001, "Minimum Amount Movement", tooltip="Mouvement de prix minimum selon Binance")
+decimalPlaces = input.int(5, "Rounding", minval=1, maxval=8, tooltip="Décimales pour l'arrondi")
+belowPct = input.float(0.5, "Next entry less than (%)", step=0.1, minval=0.1, maxval=5, tooltip="Pourcentage sous le dernier prix")
+profitPct = input.float(2.0, "Profit (%)", step=0.1, minval=0.5, maxval=10, tooltip="Pourcentage de profit cible")
+
+// Calcul de la quantité avec gestion d'erreur
+calculateQty() =>
+    priceInBTC = orderValue / close
+    rounded = math.round(priceInBTC, decimalPlaces)
+    rounded >= priceInBTC ? rounded + minMovement : rounded + (minMovement * 2)
+
+quant = calculateQty()
+
+// Gestion du prix moyen avec valeur par défaut
+avgPrice = strategy.position_avg_price > 0 ? strategy.position_avg_price : close
+prof = avgPrice * (1 + (profitPct / 100))
+
+// Dernier prix d'entrée avec protection
+var float lastEntryPrice = na
+if strategy.opentrades > 0
+    lastEntryPrice := strategy.opentrades.entry_price(strategy.opentrades - 1)
+else
+    lastEntryPrice := close
+
+// Prochaine entrée
+nextEntry = lastEntryPrice * (1 - belowPct / 100)
+
+// Affichage
+plot(prof, "Target", color=color.green, linewidth=2)
+plot(avgPrice, "Avg Price", color=color.blue, linewidth=2)
+plot(lastEntryPrice, "Last Entry", color=color.purple, linewidth=2)
+plot(nextEntry, "Next Entry", color=color.orange, linewidth=2)
+
+// Conditions temporelles
+fromYear = input.int(2023, "From Year", minval=2000)
+fromMonth = input.int(1, "From Month", minval=1, maxval=12)
+fromDay = input.int(1, "From Day", minval=1, maxval=31)
+startTime = timestamp(fromYear, fromMonth, fromDay, 0, 0)
+inTradingPeriod = time >= startTime
+
+// Entrées
+if inTradingPeriod and (strategy.opentrades == 0 or close < nextEntry)
+    strategy.entry("Long", strategy.long, qty=quant, comment=str.tostring(quant))
+
+// Sorties
+if strategy.position_size > 0 and close >= prof
+    strategy.close_all(comment="Profit")
+
+// Alertes optimisées
+if inTradingPeriod and (strategy.opentrades == 0 or close < nextEntry)
+    alert('{"action":"buy","symbol":"{{ticker}}","price":{{close}},"qty":"'+str.tostring(quant)+'","timestamp":"{{timenow}}"}', alert.freq_once_per_bar)
+
+if strategy.position_size > 0 and close >= prof
+    alert('{"action":"sell","symbol":"{{ticker}}","price":{{close}},"timestamp":"{{timenow}}"}', alert.freq_once_per_bar)

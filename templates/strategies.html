@@ -1,0 +1,140 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-code-slash"></i> Gestion des Stratégies</h2>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStrategyModal">
+        <i class="bi bi-plus-lg"></i> Ajouter une stratégie
+    </button>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5><i class="bi bi-list-check"></i> Stratégies Disponibles</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Dernière exécution</th>
+                        <th>Succès/Tentatives</th>
+                        <th>Statut</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="strategiesTable">
+                    <!-- Rempli dynamiquement par JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal d'ajout de stratégie -->
+<div class="modal fade" id="addStrategyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter une stratégie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addStrategyForm">
+                    <div class="mb-3">
+                        <label class="form-label">Nom de la stratégie</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fichier Pine Script</label>
+                        <input type="file" class="form-control" name="file" accept=".pine" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" name="activate" checked>
+                        <label class="form-check-label">Activer immédiatement</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveStrategyBtn">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Charger la liste des stratégies
+    async function loadStrategies() {
+        try {
+            const response = await fetch('/api/strategies');
+            const strategies = await response.json();
+            
+            const table = document.getElementById('strategiesTable');
+            table.innerHTML = '';
+            
+            strategies.forEach(strategy => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${strategy.name}</td>
+                    <td>${strategy.last_executed ? new Date(strategy.last_executed).toLocaleString() : '-'}</td>
+                    <td>${strategy.success_count || 0}/${strategy.total_count || 0}</td>
+                    <td>
+                        <span class="badge ${strategy.active ? 'bg-success' : 'bg-secondary'}">
+                            ${strategy.active ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" data-action="execute" data-name="${strategy.name}">
+                            <i class="bi bi-play"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-${strategy.active ? 'warning' : 'success'}" 
+                                data-action="toggle" data-name="${strategy.name}">
+                            <i class="bi bi-${strategy.active ? 'pause' : 'play'}"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" data-action="delete" data-name="${strategy.name}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                `;
+                table.appendChild(row);
+            });
+            
+            // Ajouter les gestionnaires d'événements
+            document.querySelectorAll('[data-action="execute"]').forEach(btn => {
+                btn.addEventListener('click', () => executeStrategy(btn.dataset.name));
+            });
+            
+            document.querySelectorAll('[data-action="toggle"]').forEach(btn => {
+                btn.addEventListener('click', () => toggleStrategy(btn.dataset.name));
+            });
+            
+            document.querySelectorAll('[data-action="delete"]').forEach(btn => {
+                btn.addEventListener('click', () => deleteStrategy(btn.dataset.name));
+            });
+            
+        } catch (error) {
+            console.error('Erreur de chargement des stratégies:', error);
+        }
+    }
+    
+    // Exécuter une stratégie
+    async function executeStrategy(name) {
+        try {
+            const response = await fetch(`/api/strategies/${name}/execute`, {method: 'POST'});
+            if (response.ok) {
+                alert(`Stratégie "${name}" exécutée avec succès!`);
+                loadStrategies();
+            } else {
+                alert('Erreur lors de l\'exécution');
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+        }
+    }
+    
+    // Charger les stratégies initiales
+    loadStrategies();
+</script>
+{% endblock %}

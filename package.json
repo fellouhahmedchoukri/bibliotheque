@@ -1,0 +1,7 @@
+{
+  "name": "pine-executor",
+  "version": "1.0.0",
+  "dependencies": {
+    "pinescript-runner": "^1.2.0"
+  }
+}

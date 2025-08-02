@@ -1,0 +1,7 @@
+flask==3.0.2
+gunicorn==21.2.0
+apscheduler==3.10.1
+python-dotenv==1.0.0
+python-binance==1.0.19
+numpy==1.26.4
+TA-Lib==0.4.24

@@ -1,0 +1,8 @@
+# Dans votre fichier package.json des stratégies Pine
+{
+  "name": "pine-executor",
+  "version": "1.0.0",
+  "dependencies": {
+    "pinejs": "^0.9.3"
+  }
+}

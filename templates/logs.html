@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-journal-text"></i> Logs du Système</h2>
+
+<div class="card">
+    <div class="card-header bg-secondary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5>Logs en temps réel</h5>
+            <div>
+                <button class="btn btn-sm btn-light" id="clearLogsBtn">
+                    <i class="bi bi-trash"></i> Effacer
+                </button>
+                <div class="form-check form-switch d-inline-block ms-2">
+                    <input class="form-check-input" type="checkbox" id="autoScrollToggle" checked>
+                    <label class="form-check-label text-white" for="autoScrollToggle">Défilement auto</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="log-container" id="logContainer">
+            <pre id="logContent"></pre>
+        </div>
+    </div>
+</div>
+
+<script>
+    const logContent = document.getElementById('logContent');
+    const logContainer = document.getElementById('logContainer');
+    const autoScrollToggle = document.getElementById('autoScrollToggle');
+    let autoScroll = true;
+    
+    // Connexion SSE pour les logs en temps réel
+    const eventSource = new EventSource('/logs');
+    
+    eventSource.onmessage = function(event) {
+        const logLine = document.createElement('div');
+        logLine.textContent = event.data;
+        logContent.appendChild(logLine);
+        
+        if (autoScroll) {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+    };
+    
+    // Effacer les logs
+    document.getElementById('clearLogsBtn').addEventListener('click', () => {
+        logContent.innerHTML = '';
+    });
+    
+    // Gérer le défilement automatique
+    autoScrollToggle.addEventListener('change', (e) => {
+        autoScroll = e.target.checked;
+    });
+    
+    // Détecter le défilement manuel
+    logContainer.addEventListener('scroll', () => {
+        const atBottom = logContainer.scrollHeight - logContainer.scrollTop === logContainer.clientHeight;
+        autoScroll = atBottom;
+        autoScrollToggle.checked = atBottom;
+    });
+</script>
+
+<style>
+    .log-container {
+        height: 70vh;
+        overflow-y: auto;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 15px;
+        font-family: monospace;
+        font-size: 14px;
+    }
+    
+    .log-container pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+</style>
+{% endblock %}
